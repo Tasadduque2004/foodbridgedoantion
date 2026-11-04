@@ -218,7 +218,12 @@ if(window.flatpickr){const minExpiry=new Date();minExpiry.setHours(0,0,0,0);minE
 function msg(t,type="notice"){$("message").textContent=t;$("message").className="notice "+(type==="success"?"success":type==="error"?"error":"");window.scrollTo({top:0,behavior:"smooth"});}
 function view(n){["home","auth","dashboard"].forEach(x=>$(x+"View").classList.toggle("hidden",x!==n));$("message").classList.add("hidden");}
 function esc(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function nav(on){["loginNav","signupNav"].forEach(x=>$(x).classList.toggle("hidden",on));["dashboardNav","logoutBtn"].forEach(x=>$(x).classList.toggle("hidden",!on));if(!on)drawer(false);}
+function nav(on){
+  // Set both the class and inline display so older mobile CSS cannot override auth state.
+  ["loginNav","signupNav"].forEach(id=>{const el=$(id);el.classList.toggle("hidden",!!on);el.style.display=on?"none":"inline-flex";});
+  ["dashboardNav","logoutBtn"].forEach(id=>{const el=$(id);el.classList.toggle("hidden",!on);el.style.display=on?"inline-flex":"none";});
+  if(!on)drawer(false);
+}
 function friendly(e){if(e.code?.includes("permission-denied"))return"Firestore permission denied. Please check your Firestore Rules.";if(e.code?.includes("invalid-credential"))return"Email or password is incorrect.";if(e.code?.includes("email-already-in-use"))return"This email already has an account. Please log in.";return e.message||"Something went wrong.";}
 function animateCounter(el,target){if(!el)return;const end=Math.max(0,Number(target)||0),start=Number(el.dataset.value||0),duration=850,begin=performance.now();if(start===end){el.textContent=end.toLocaleString();el.dataset.value=String(end);return;}function step(now){const t=Math.min(1,(now-begin)/duration),eased=1-Math.pow(1-t,3),value=Math.round(start+(end-start)*eased);el.textContent=value.toLocaleString();if(t<1)requestAnimationFrame(step);else el.dataset.value=String(end);}requestAnimationFrame(step);}
 function renderRecentPublic(items=[]){const track=$("recentPublicTrack");if(!items.length){track.innerHTML='<div class="recent-empty">No public donation activity yet.</div>';$('recentPublicStatus').textContent='Waiting for the first donation';return;}const make=items.map(x=>`<button type="button" class="recent-item" data-public-recent="${esc(x.foodName||"Food donation")}" data-public-category="${esc(x.category||"Food")}" data-public-status="${esc(x.status||"available")}"><strong>${esc(x.foodName||"Food donation")}</strong><span>${esc(x.category||"Food")} · ${esc(x.status||"available")} · ${esc(x.dateLabel||"Recently")}</span><span class="public-view-hint">View public update →</span></button>`).join("");track.innerHTML=make+make;$('recentPublicStatus').textContent=`Latest ${items.length} donation updates`;
@@ -272,9 +277,35 @@ function renderAnalytics(){const statuses=[{label:"Available",value:donations.fi
 function renderRoleAnalytics(){if(!currentProfile)return;const role=currentProfile.role;const mine=role==="donor"?donations.filter(d=>d.donorId===currentUser.uid):role==="ngo"?donations.filter(d=>d.acceptedBy===currentUser.uid):donations;const completed=mine.filter(d=>d.status==="completed").length,accepted=mine.filter(d=>d.status==="accepted").length,available=mine.filter(d=>(d.status||"available")==="available").length;$("roleAnalyticsTitle").textContent=role==="admin"?"Platform Analytics":role==="ngo"?"NGO Performance Analytics":"My Donation Analytics";$("roleAnalyticsSubtitle").textContent=role==="admin"?"All FoodBridge activity · click any card for details":role==="ngo"?"Your accepted donations and collection progress · click any card for details":"Your posted donations and completion progress · click any card for details";$("roleStatusTitle").textContent=role==="ngo"?"My accepted donation status":role==="donor"?"My donation status":"Platform donation status";const stats=role==="admin"?[{key:"total",icon:"📦",value:donations.length,label:"Total donations"},{key:"accepted",icon:"🤝",value:accepted,label:"Accepted"},{key:"completed",icon:"✅",value:completed,label:"Completed"},{key:"users",icon:"👥",value:users.length,label:"Registered users"}]:[{key:"total",icon:"📦",value:mine.length,label:role==="ngo"?"Accepted by me":"My donations"},{key:"completed",icon:"✅",value:completed,label:"Completed"},{key:"accepted",icon:"🤝",value:accepted,label:"Accepted / in progress"},{key:"available",icon:"⏳",value:available,label:"Waiting / available"}];$("roleAnalyticsStats").innerHTML=stats.map(x=>`<button type="button" class="stat" data-role-metric="${x.key}"><div class="stat-icon">${x.icon}</div><div><strong>${x.value}</strong><span>${x.label}</span></div></button>`).join("");const source=role==="admin"?donations:mine;const statuses=[{label:"Available",value:source.filter(d=>(d.status||"available")==="available").length},{label:"Accepted",value:source.filter(d=>d.status==="accepted").length},{label:"Completed",value:source.filter(d=>d.status==="completed").length}];makeBars("roleStatusBars",statuses);const cats={};source.forEach(d=>{const k=d.category||"Other";cats[k]=(cats[k]||0)+1});makeBars("roleCategoryBars",Object.entries(cats).map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value));const days=[];for(let i=6;i>=0;i--){const dt=new Date();dt.setHours(0,0,0,0);dt.setDate(dt.getDate()-i);days.push({date:dt,label:dt.toLocaleDateString(undefined,{weekday:"short"}),value:0})}source.forEach(d=>{const dt=d.createdAt?.toDate?d.createdAt.toDate():d.createdAt?new Date(d.createdAt):null;if(dt&&!isNaN(dt)){const day=days.find(x=>x.date.toDateString()===new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()).toDateString());if(day)day.value++}});makeBars("roleWeeklyBars",days.map(({label,value})=>({label,value})));makeBars("roleImpactBars",[{label:"Completed",value:completed},{label:"In progress",value:accepted},{label:"Available",value:available}]);}
 function renderAdmin(){renderAnalytics();$("adminUsers").textContent=users.length;$("adminDonors").textContent=users.filter(u=>u.role==="donor").length;$("adminNGOs").textContent=users.filter(u=>u.role==="ngo").length;$("adminDonations").textContent=donations.length;$("adminAccepted").textContent=donations.filter(d=>d.status==="accepted").length;$("adminCompleted").textContent=donations.filter(d=>d.status==="completed").length;$("adminUserRows").innerHTML=users.map(u=>`<tr><td>${esc(u.name||"")}</td><td>${esc(u.email||"")}</td><td>${esc(u.role||"")}</td><td>${u.createdAt?.toDate?esc(u.createdAt.toDate().toLocaleDateString("en-GB")):"—"}</td></tr>`).join("");$("adminFoods").innerHTML=donations.length?donations.map(card).join(""):'<div class="empty">No donations.</div>';}
 function listen(){if(stopDonations)stopDonations();stopDonations=onSnapshot(query(collection(db,"donations"),orderBy("createdAt","desc")),s=>{donations=s.docs.map(x=>({id:x.id,...x.data()}));donationsLoaded=true;if($("syncStatus"))$("syncStatus").textContent="● Live updates connected";render();publishPublicCommunityStats();},e=>{if($("syncStatus"))$("syncStatus").textContent="Live sync issue — use Refresh now";msg(friendly(e),"error");});}
-async function refreshFromServer(){const b=$("refreshDataBtn");if(b){b.disabled=true;b.textContent="Refreshing…";}try{const snap=await getDocsFromServer(query(collection(db,"donations"),orderBy("createdAt","desc")));donations=snap.docs.map(x=>({id:x.id,...x.data()}));if(currentProfile?.role==="admin"){const us=await getDocsFromServer(collection(db,"users"));users=us.docs.map(x=>({uid:x.id,...x.data()}));usersLoaded=true;donationsLoaded=true;await publishPublicCommunityStats();}render();if($("syncStatus"))$("syncStatus").textContent="✓ Synced with Firebase just now";}catch(e){msg("Could not refresh from server: "+friendly(e),"error");}finally{if(b){b.disabled=false;b.textContent="↻ Refresh now";}}}
-$("refreshDataBtn").addEventListener("click",refreshFromServer);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&currentUser)refreshFromServer();});
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&currentUser){refreshFromServer().catch(()=>{});}});
+let refreshInProgress=false;
+async function refreshFromServer(){
+  // A refresh started before logout must not continue using a signed-out session.
+  if(!currentUser || !auth.currentUser || !currentProfile) return;
+  if(refreshInProgress) return;
+  refreshInProgress=true;
+  const uid=currentUser.uid;
+  const b=$("refreshDataBtn");if(b){b.disabled=true;b.textContent="Refreshing…";}
+  try{
+    const snap=await getDocsFromServer(query(collection(db,"donations"),orderBy("createdAt","desc")));
+    if(!auth.currentUser || auth.currentUser.uid!==uid || !currentUser) return;
+    donations=snap.docs.map(x=>({id:x.id,...x.data()}));
+    if(currentProfile?.role==="admin"){
+      const us=await getDocsFromServer(collection(db,"users"));
+      if(!auth.currentUser || auth.currentUser.uid!==uid || !currentUser) return;
+      users=us.docs.map(x=>({uid:x.id,...x.data()}));usersLoaded=true;donationsLoaded=true;
+      await publishPublicCommunityStats();
+    }
+    render();if($("syncStatus"))$("syncStatus").textContent="✓ Synced with Firebase just now";
+  }catch(e){
+    // Do not show a misleading permission error if logout happened during the request.
+    if(auth.currentUser && currentUser && auth.currentUser.uid===uid) msg("Could not refresh from server: "+friendly(e),"error");
+  }finally{
+    refreshInProgress=false;
+    if(b){b.disabled=false;b.textContent="↻ Refresh now";}
+  }
+}
+$("refreshDataBtn").addEventListener("click",refreshFromServer);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&currentUser&&auth.currentUser)refreshFromServer();});
 function listenUsers(){if(stopUsers){stopUsers();stopUsers=null;}if(currentProfile?.role!=="admin"){users=currentProfile?[{uid:currentUser?.uid||"",...currentProfile}]:[];usersLoaded=false;render();return;}stopUsers=onSnapshot(collection(db,"users"),s=>{users=s.docs.map(x=>({uid:x.id,...x.data()}));usersLoaded=true;render();publishPublicCommunityStats();},e=>{msg(friendly(e),"error");});}
 function openDetails(title,html){$("detailModalTitle").textContent=title;$("detailModalBody").innerHTML=html;$("detailModal").classList.add("open");document.body.style.overflow="hidden";}
 function closeDetails(){$("detailModal").classList.remove("open");document.body.style.overflow="";}
@@ -368,6 +399,18 @@ html,body{max-width:100%;overflow-x:hidden}
 @media(max-width:380px){
   .nav>.brand{font-size:19px!important}
   .nav>nav button{font-size:11px!important;padding:9px 5px!important}
+}
+</style>
+
+<style id="foodbridge-auth-nav-hard-fix">
+/* Highest-priority auth visibility: never show all four actions together. */
+header .nav>nav #loginNav.hidden,header .nav>nav #signupNav.hidden,
+header .nav>nav #dashboardNav.hidden,header .nav>nav #logoutBtn.hidden{display:none!important;}
+@media(max-width:700px){
+ header .nav>nav #loginNav:not(.hidden),header .nav>nav #signupNav:not(.hidden),
+ header .nav>nav #dashboardNav:not(.hidden),header .nav>nav #logoutBtn:not(.hidden){display:inline-flex!important;}
+ header .nav>nav{flex-wrap:wrap!important;justify-content:center!important;}
+ header .nav>nav button{min-width:0!important;max-width:48%!important;flex:0 1 46%!important;}
 }
 </style>
 </body></html>
