@@ -129,6 +129,21 @@ nav,.tabs,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}main{m
 
 /* Auth state must win over all mobile button display rules. */
 #loginNav.hidden,#signupNav.hidden,#dashboardNav.hidden,#logoutBtn.hidden{display:none!important;}
+
+/* Mobile dashboard sections open as a separate page view, not a scroll jump. */
+@media(max-width:700px){
+  .mobile-page-back{display:inline-flex;align-items:center;white-space:nowrap;padding:9px 11px;font-size:12px;}
+  #dashboardView.mobile-subpage #dashboardStats,
+  #dashboardView.mobile-subpage #roleAnalytics,
+  #dashboardView.mobile-subpage #dashboardTabs{display:none!important;}
+  #dashboardView.mobile-subpage .dashboard-topbar{position:sticky;top:0;z-index:20;margin:0 -14px 14px;padding:10px 14px!important;border-bottom:1px solid var(--line);box-shadow:0 3px 12px #16412b0b;}
+  #dashboardView.mobile-subpage #availablePanel,
+  #dashboardView.mobile-subpage #minePanel,
+  #dashboardView.mobile-subpage #chatsPanel,
+  #dashboardView.mobile-subpage #donatePanel,
+  #dashboardView.mobile-subpage #profilePanel,
+  #dashboardView.mobile-subpage #adminPanel{min-height:calc(100dvh - 95px);padding-bottom:28px;}
+}
 </style>
 </head>
 <body>
@@ -178,7 +193,7 @@ nav,.tabs,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}main{m
 <form id="authForm"><div id="nameField" class="hidden"><label>Name / Organisation</label><input id="fullName" placeholder="Enter your name"></div><div id="roleField" class="hidden"><label>Account type</label><select id="role"><option value="donor">Food donor</option><option value="ngo">NGO / Food receiver</option></select></div>
 <label>Email address</label><input id="email" type="email" required placeholder="you@example.com"><label>Password</label><input id="password" type="password" minlength="6" required placeholder="At least 6 characters"><button id="authSubmit" type="submit" style="width:100%">Login</button></form></div></section>
 <section id="dashboardView" class="hidden">
-<div class="dashboard-topbar"><button class="menu-toggle" id="dashboardMenuToggle" aria-label="Open menu">☰</button><div class="topbar-copy"><strong id="welcomeTitle">Dashboard</strong><small id="welcomeSub"></small></div><span id="roleBadge" class="tag" style="margin-left:auto"></span></div>
+<div class="dashboard-topbar"><button class="menu-toggle" id="dashboardMenuToggle" aria-label="Open menu">☰</button><button type="button" class="secondary mobile-page-back hidden" id="mobilePageBack">← Dashboard</button><div class="topbar-copy"><strong id="welcomeTitle">Dashboard</strong><small id="welcomeSub"></small></div><span id="roleBadge" class="tag" style="margin-left:auto"></span></div>
 <div class="stats" id="dashboardStats"><div class="stat"><div class="stat-icon">📦</div><div><strong id="myTotal">0</strong><span id="myTotalLabel">My donations</span></div></div><div class="stat"><div class="stat-icon">✅</div><div><strong id="myCompleted">0</strong><span>Completed</span></div></div><div class="stat"><div class="stat-icon">⏳</div><div><strong id="myPending">0</strong><span>Pending / accepted</span></div></div></div>
 <section id="roleAnalytics" class="role-analytics panel"><div class="section-title" style="margin:0 0 8px"><div><div class="eyebrow">YOUR IMPACT AT A GLANCE</div><h2 id="roleAnalyticsTitle">Dashboard Analytics</h2><p id="roleAnalyticsSubtitle">Click any card to explore details.</p></div></div><div class="stats role-analytics-stats" id="roleAnalyticsStats"></div><div class="analytics-grid"><div class="analytics-panel analytics-click" data-analytics-detail="status"><h3 id="roleStatusTitle">Donation status</h3><p>Click to view the detailed breakdown</p><div id="roleStatusBars" class="analytics-empty">Loading…</div></div><div class="analytics-panel analytics-click" data-analytics-detail="category"><h3>Food category</h3><p>Click to view category-wise details</p><div id="roleCategoryBars" class="analytics-empty">Loading…</div></div><div class="analytics-panel analytics-click" data-analytics-detail="weekly"><h3>Recent activity</h3><p>Last 7 days · Click for details</p><div id="roleWeeklyBars" class="analytics-empty">Loading…</div></div><div class="analytics-panel analytics-click" data-analytics-detail="impact"><h3>Impact summary</h3><p>Click to explore your contribution</p><div id="roleImpactBars" class="analytics-empty">Loading…</div></div></div></section>
 <div class="tabs" id="dashboardTabs"><button class="active" data-tab="available">Available Food</button><button data-tab="mine">My Donations</button><button data-tab="chats">💬 Messages</button><button data-tab="donate" id="donateTab">Donate Food</button><button data-tab="profile">My Profile</button><button data-tab="admin" id="adminTab" class="hidden">Admin Dashboard</button></div>
@@ -240,7 +255,7 @@ async function freeUpdatePublicStats(changes={}, recentItem=null){
   await setDoc(ref,payload,{merge:true});
 }
 function authPage(mode){authMode=mode;view("auth");$("nameField").classList.toggle("hidden",mode!=="signup");$("roleField").classList.toggle("hidden",mode!=="signup");$("authSubmit").textContent=mode==="login"?"Login":"Create account";$("loginTab").classList.toggle("active",mode==="login");$("signupTab").classList.toggle("active",mode==="signup");}
-$("homeBtn").onclick=()=>view("home");$("loginNav").onclick=()=>authPage("login");$("signupNav").onclick=()=>authPage("signup");$("heroSignup").onclick=()=>authPage("signup");$("loginTab").onclick=()=>authPage("login");$("signupTab").onclick=()=>authPage("signup");$("dashboardNav").onclick=async()=>{view("dashboard");await refreshFromServer();};$("logoutBtn").onclick=()=>signOut(auth);
+$("homeBtn").onclick=()=>view("home");$("loginNav").onclick=()=>authPage("login");$("signupNav").onclick=()=>authPage("signup");$("heroSignup").onclick=()=>authPage("signup");$("loginTab").onclick=()=>authPage("login");$("signupTab").onclick=()=>authPage("signup");$("dashboardNav").onclick=async()=>{view("dashboard");mobileDashboardHome();await refreshFromServer();};$("logoutBtn").onclick=()=>signOut(auth);
 $("authForm").onsubmit=async e=>{e.preventDefault();const b=$("authSubmit");b.disabled=true;authSubmitting=true;try{const email=$("email").value.trim().toLowerCase(),password=$("password").value;if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))throw Error("Enter a valid email address, including its domain (example: name@college.edu.in).");$("email").value=email;if(authMode==="signup"){const name=$("fullName").value.trim(),role=$("role").value;if(!name)throw Error("Enter your name.");const c=await createUserWithEmailAndPassword(auth,email,password);await setDoc(doc(db,"users",c.user.uid),{name,email,role,phone:"",address:"",pickupInstructions:"",createdAt:serverTimestamp()});await sendEmailVerification(c.user);try{if(role==="donor")await freeUpdatePublicStats({totalDonors:increment(1)});else if(role==="ngo")await freeUpdatePublicStats({totalNGOs:increment(1)});}catch(statsError){console.warn("Public stats update skipped:",statsError);}await signOut(auth);view("home");msg("Account created! We sent a verification link to "+email+". Open that email and verify your address, then log in.","success");}else{const c=await signInWithEmailAndPassword(auth,email,password);await reload(c.user);if(!c.user.emailVerified){try{await sendEmailVerification(c.user);}catch(verificationError){console.warn("Verification email resend skipped:",verificationError);}await signOut(auth);view("home");msg("Your email is not verified yet. We have sent a verification link to "+email+". Verify it first, then log in.","error");}}}catch(e){msg(friendly(e),"error");}finally{authSubmitting=false;b.disabled=false;}};
 $("foodPhoto").onchange=()=>{const f=$("foodPhoto").files[0];if(!f){$("photoPreview").classList.add("hidden");return;}if(!f.type.startsWith("image/")||f.size>5*1024*1024){msg("Choose an image smaller than 5 MB.","error");$("foodPhoto").value="";return;}$("previewImage").src=URL.createObjectURL(f);$("photoPreview").classList.remove("hidden");};
 function dateText(v){if(!v)return"Not specified";if(v.toDate)return v.toDate().toLocaleString();const d=new Date(v);return isNaN(d)?"Not specified":d.toLocaleString();}
@@ -248,7 +263,31 @@ function displayNgoName(d){const ngo=users.find(u=>u.uid===d.acceptedBy&&u.role=
 function card(d){let action="";if(currentProfile?.role==="ngo"&&d.status==="available")action=`<button data-action="accept" data-id="${esc(d.id)}">Accept donation</button>`;if(currentProfile?.role==="ngo"&&d.acceptedBy===currentUser?.uid&&d.status==="accepted")action+=`<div class="pickup-editor"><strong class="wide">📅 ${d.pickupScheduledAt?"Update pickup schedule":"Schedule pickup now"}</strong><label>Pickup date and time<input type="datetime-local" data-pickup-time="${esc(d.id)}" value="${esc(d.pickupDateTime||"")}"></label><label class="wide">Note for donor<textarea data-pickup-note="${esc(d.id)}" maxlength="500" placeholder="Optional pickup instructions">${esc(d.pickupNote||"")}</textarea></label><button type="button" data-action="save-pickup" data-id="${esc(d.id)}">Save pickup schedule</button></div>`;
 if(currentProfile?.role==="donor"&&d.donorId===currentUser?.uid&&d.status==="accepted"&&d.pickupScheduledAt&&!d.pickupConfirmed)action+=`<button data-action="confirm-pickup" data-id="${esc(d.id)}">✓ Confirm Pickup Time</button>`;
 if(currentProfile?.role==="donor"&&d.donorId===currentUser?.uid&&d.status==="accepted")action+=`<button data-action="complete" data-id="${esc(d.id)}">Mark Completed</button>`;if(currentUser&&["accepted","completed"].includes(d.status)&&((currentProfile?.role==="donor"&&d.donorId===currentUser.uid)||(currentProfile?.role==="ngo"&&d.acceptedBy===currentUser.uid)))action+=`<button class="secondary" data-action="open-chat" data-id="${esc(d.id)}">💬 Chat</button>`;const ngoName=displayNgoName(d);const savedPickupLocation=d.pickupLocation||d.location||d.address||d.donorAddress||"";const mapTarget=d.latitude!=null&&d.longitude!=null?`${d.latitude},${d.longitude}`:savedPickupLocation;const mapSearch=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapTarget)}`;const mapDirections=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapTarget)}`;return`<article class="food-card">${d.imageUrl?`<img class="food-photo" src="${esc(d.imageUrl)}" alt="Food photo" loading="lazy">`:""}<span class="tag">${esc(d.category||"Food")}</span><h3>${esc(d.foodName||"Food donation")}</h3><div class="card-meta">🍽️ ${esc(d.quantity||"Not specified")}<br>📍 Donor pickup: ${esc(savedPickupLocation||"Not specified")}<br>☎️ Donor contact: ${esc(d.contact||"Not specified")}<br>⏰ Collect before: ${dateText(d.deadline)}${d.expiryDate?`<br>📅 Food expiry date: ${esc(d.expiryDate)}`:""}<br>👤 Donor: ${esc(d.donorName||"Donor")}<br>📌 Status: <b>${esc(d.status||"available")}</b>${ngoName?`<br>🤝 NGO: ${esc(ngoName)}`:""}${d.ngoAddress?`<br>🏢 NGO pickup address: ${esc(d.ngoAddress)}`:""}${d.ngoContact?`<br>☎️ NGO contact: ${esc(d.ngoContact)}`:""}${d.ngoPickupInstructions?`<br>📝 NGO instructions: ${esc(d.ngoPickupInstructions)}`:""}${d.status==="accepted"&&d.pickupScheduledAt?`<br>📅 Pickup scheduled: ${esc(d.pickupScheduledAt)}${d.pickupNote?`<br>📝 Pickup note: ${esc(d.pickupNote)}`:""}<br>✓ Donor confirmation: ${d.pickupConfirmed?"Confirmed":"Pending"}`:""}${d.notes?`<br>Notes: ${esc(d.notes)}`:""}</div>${mapTarget?`<div class="map-actions"><a class="map-link" href="${mapSearch}" target="_blank" rel="noopener noreferrer">View on Google Maps ↗</a><a class="map-link" href="${mapDirections}" target="_blank" rel="noopener noreferrer">Get Directions ↗</a></div>`:""}<div class="actions">${action}</div></article>`;}
-function tab(t){["available","mine","chats","donate","profile","admin"].forEach(x=>$(x+"Panel").classList.toggle("hidden",x!==t));document.querySelectorAll("#dashboardTabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===t));document.querySelectorAll("[data-menu-tab]").forEach(b=>b.classList.toggle("active",b.dataset.menuTab===t));const target=$(t+"Panel");if(target)setTimeout(()=>target.scrollIntoView({behavior:"smooth",block:"start"}),60);}
+function tab(t){
+  ["available","mine","chats","donate","profile","admin"].forEach(x=>$(x+"Panel").classList.toggle("hidden",x!==t));
+  document.querySelectorAll("#dashboardTabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===t));
+  document.querySelectorAll("[data-menu-tab]").forEach(b=>b.classList.toggle("active",b.dataset.menuTab===t));
+  const mobile=window.matchMedia("(max-width:700px)").matches;
+  if(mobile){
+    $("dashboardView").classList.add("mobile-subpage");
+    $("mobilePageBack").classList.remove("hidden");
+    const labels={available:"Available Food",mine:"My Donations",chats:"Messages",donate:"Donate Food",profile:"My Profile",admin:"Admin Dashboard"};
+    $("welcomeTitle").textContent=labels[t]||"Dashboard";
+    window.scrollTo({top:0,behavior:"instant"});
+  } else {
+    const target=$(t+"Panel");if(target)setTimeout(()=>target.scrollIntoView({behavior:"smooth",block:"start"}),60);
+  }
+}
+function mobileDashboardHome(){
+  $("dashboardView").classList.remove("mobile-subpage");
+  $("mobilePageBack").classList.add("hidden");
+  $("welcomeTitle").textContent="Dashboard";
+  ["available","mine","chats","donate","profile","admin"].forEach(x=>$(x+"Panel").classList.toggle("hidden",x!=="available"));
+  document.querySelectorAll("#dashboardTabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab==="available"));
+  document.querySelectorAll("[data-menu-tab]").forEach(b=>b.classList.toggle("active",b.dataset.menuTab==="available"));
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$("mobilePageBack").onclick=mobileDashboardHome;
 $("dashboardTabs").onclick=e=>{const b=e.target.closest("[data-tab]");if(b&&!b.classList.contains("hidden"))tab(b.dataset.tab);};
 function drawer(open){$("sideDrawer").classList.toggle("open",open);$("drawerShade").classList.toggle("open",open);document.body.style.overflow=open?"hidden":"";}
 $("dashboardMenuToggle").onclick=()=>drawer(true);$("drawerClose").onclick=()=>drawer(false);$("drawerShade").onclick=()=>drawer(false);
